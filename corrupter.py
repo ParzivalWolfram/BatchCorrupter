@@ -20,6 +20,9 @@ logging = False
 logName = "../corrupter.log"
 logFileHandle = 0
 
+#4/10/22: ignoring file access errors? Yes. Don't do this, but it's here if you're shitposting, I suppose.
+ignoreErrors = False
+
 import sys #we need this for one fucking thing and it's not able to be from-imported
 from datetime import date
 from time import time
@@ -52,6 +55,8 @@ for argvbuf in argvlist: #this isn't i because this is actually optimization of 
                 debug = True
         if "--debug" in argvbuf or "--verbose" in argvbuf: #check for standard debug flag
                 debug = True
+        if "--ignore" in argvbuf or "---ignore-errors" in argvbuf: #4/10/22: adding access error ignore flag, per request
+                ignoreErrors = True
 
 def sendLog(inputString): #3/12/22: logging is nice, my code does not
         stringType = inputString[:4]
@@ -105,7 +110,7 @@ def corrupt(fileName):
         try: #i forgot why this try/except block is here but i'm gonna assume "because Windows"
                 fileHandle = open(fileName,"rb+") #yes, this lets us read and write binary without truncating the file. Why? Ask the Python Foundation.
         except Exception:
-                return e
+                return Exception
         fileSize = os.stat(fileName).st_size #it's like 4 lines to get this using the actual file's data and discrepancies are rare nowadays so fuck it, good enough
         skip = random.randint(128,1024) #PRNG is the spice of life and i'm tired of pretending it's not
         seek = random.randint(16, 256)
@@ -137,7 +142,10 @@ def corrupt(fileName):
                 loopnum += 1
         fileHandle.flush() #on some OSes and/or Python versions you have to flush AND close or it doesn't flush because mmhmm sure why not?
         fileHandle.close()
-        sendLog(str(fileName)+": corrupted "+str(loopnum)+" bytes out of "+str(fileSize)+" total, corrupted "+str(float(float(loopnum)/float(fileSize))*100)+"%.")
+        try:
+                sendLog(str(fileName)+": corrupted "+str(loopnum)+" bytes out of "+str(fileSize)+" total, corrupted "+str(float(float(loopnum)/float(fileSize))*100)+"%.")
+        except:
+                sendLog(str(fileName)+": corrupted "+str(loopnum)+" bytes out of "+str(fileSize)+" total, corrupted <MATH ERROR>%.") #4/10/22: this apparently breaks sometimes, so... here you go ig
         return 0
 
 while True: #this is the worst and i have yet to find a less ugly way of doing infinite looping user input validation, it makes me sad too
@@ -163,7 +171,9 @@ for f in fileArray:
                 errorCheck = corrupt(f) #this is also terrible
                 if logging:
                         logFileHandle.flush()
-                if errorCheck != 0:
+                if ignoreErrors:
+                        print("File access error for file \""+str(f)+"\", ignored per request.") #4/10/22: adding access error ignore flag, per request
+                elif errorCheck != 0:
                         print("Internal error has occured:\n\nFile I/O error\n\nPlease contact author and attach \"error.bin\".") #this error handler is really bad, fix immediately
                         errorDump = open("error.bin","w")
                         errorDump.append(str(errorCheck))
